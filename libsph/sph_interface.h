@@ -1,12 +1,6 @@
 #ifndef __LIB_SPH_INTERFACE_H__
 #define __LIB_SPH_INTERFACE_H__
 
-#ifdef LIBSPH_EXPORTS
-	#define SPH_API  __declspec(dllexport)
-#else
-	#define SPH_API  __declspec(dllimport)
-#endif
-
 
 namespace SPH
 {
@@ -37,7 +31,7 @@ extern "C"
 
 /** Get the sigleton SPH System point
 */
-SPH_API SPH::System * getSPHSystem(void);
+SPH::System * getSPHSystem(void);
 
 };
 
