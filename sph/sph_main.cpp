@@ -17,7 +17,6 @@
 #include "SDKmisc.h"
 
 #include "sph_interface.h"
-#include "resource.h"
 
 #pragma warning( disable : 4100 )
 
