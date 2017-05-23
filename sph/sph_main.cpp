@@ -58,7 +58,7 @@ ID3D11BlendState*			g_pBlendState = nullptr;
 XMMATRIX                    g_World;
 SPH::System*				g_pSPHSystem = nullptr;
 SPH::float_3				g_wallMin = { -25, 00, -25 };
-SPH::float_3				g_wallMax = { 25, 25, 25 };
+SPH::float_3				g_wallMax = { 25, 30, 25 };
 
 //--------------------------------------------------------------------------------------
 // UI control IDs
@@ -69,15 +69,15 @@ SPH::float_3				g_wallMax = { 25, 25, 25 };
 #define IDC_TOGGLEWARP          4
 #define IDC_SPH_RESET			5
 
-#define PARTICLE_COUNTS			4096*2
+#define MAX_PARTICLE_COUNTS		4096
 
 //--------------------------------------------------------------------------------------
 void resetSPHSystem(void)
 {
 	SPH::float_3 fluid_min = { -15, 5, -15 };
-	SPH::float_3 fluid_max = { 15, 25, 15 };
+	SPH::float_3 fluid_max = { 15, 28, 15 };
 	SPH::float_3 gravity = { 0.0, -9.8f, 0 };
-	g_pSPHSystem->init(PARTICLE_COUNTS, &g_wallMin, &g_wallMax, &fluid_min, &fluid_max, &gravity);
+	g_pSPHSystem->init(MAX_PARTICLE_COUNTS, &g_wallMin, &g_wallMax, &fluid_min, &fluid_max, &gravity);
 }
 
 //--------------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	D3D11_BUFFER_DESC bd;
 	ZeroMemory(&bd, sizeof(bd));
 	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.ByteWidth = sizeof(PointVertex) * PARTICLE_COUNTS;
+	bd.ByteWidth = sizeof(PointVertex) * MAX_PARTICLE_COUNTS;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	V_RETURN(pd3dDevice->CreateBuffer(&bd, nullptr, &g_pParticleVertexBuffer));
@@ -373,7 +373,7 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	pd3dImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBChangesEveryFrame);
 	pd3dImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 	pd3dImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBChangesEveryFrame);
-	pd3dImmediateContext->Draw(PARTICLE_COUNTS, 0);
+	pd3dImmediateContext->Draw(g_pSPHSystem->getPointCounts(), 0);
 
 	//
 	// Render the cube
@@ -529,10 +529,6 @@ void InitApp()
 	//create sph system
 	g_pSPHSystem = getSPHSystem();
 	resetSPHSystem();
-
-	wchar_t lpPathName[260] = { 0 };
-	GetCurrentDirectory(260, lpPathName);
-	OutputDebugString(lpPathName);
 }
 
 //--------------------------------------------------------------------------------------
