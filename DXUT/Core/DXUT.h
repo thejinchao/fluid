@@ -1,12 +1,8 @@
 //--------------------------------------------------------------------------------------
 // File: DXUT.h
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=320437
 //--------------------------------------------------------------------------------------
@@ -29,6 +25,10 @@
 #endif
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT   0x0600
+#endif
+
+#if defined(USE_DIRECT3D11_4) && !defined(USE_DIRECT3D11_3)
+#define USE_DIRECT3D11_3
 #endif
 
 #if (_WIN32_WINNT >= 0x0A00) && !defined(USE_DIRECT3D11_3)
@@ -89,6 +89,10 @@
 #include <d3d11_3.h>
 #endif
 
+#ifdef USE_DIRECT3D11_4
+#include <d3d11_4.h>
+#endif
+
 // DirectXMath includes
 #include <DirectXMath.h>
 #include <DirectXColors.h>
@@ -138,7 +142,7 @@
     ((DWORD)((((a)&0xff)<<24)|(((r)&0xff)<<16)|(((g)&0xff)<<8)|((b)&0xff)))
 #endif
 
-#define DXUT_VERSION 1114
+#define DXUT_VERSION 1118
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -298,6 +302,11 @@ ID3D11DeviceContext2*	 WINAPI DXUTGetD3D11DeviceContext2();
 #ifdef USE_DIRECT3D11_3
 ID3D11Device3*           WINAPI DXUTGetD3D11Device3();
 ID3D11DeviceContext3*	 WINAPI DXUTGetD3D11DeviceContext3();
+#endif
+
+#ifdef USE_DIRECT3D11_4
+ID3D11Device4*           WINAPI DXUTGetD3D11Device4();
+ID3D11DeviceContext4*	 WINAPI DXUTGetD3D11DeviceContext4();
 #endif
 
 // General

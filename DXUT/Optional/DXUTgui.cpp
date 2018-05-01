@@ -1,12 +1,8 @@
 //--------------------------------------------------------------------------------------
 // File: DXUTgui.cpp
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=320437
 //--------------------------------------------------------------------------------------
@@ -292,7 +288,7 @@ void DrawText11DXUT( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11Device
         }
 
         // Add 6 sprite vertices
-        DXUTSpriteVertex SpriteVertex;
+        DXUTSpriteVertex SpriteVertex = {};
         float fRectRight = fRectLeft + fGlyphSizeX;
         float fRectBottom = fRectTop - fGlyphSizeY;
         float fTexLeft = ( strText[i] - 32 ) * fCharTexSizeX;
@@ -1651,7 +1647,7 @@ HRESULT CDXUTDialog::DrawSprite( CDXUTElement* pElement, const RECT* prcDest, fl
     float fTexBottom = rcTexture.bottom / fTexHeight;
 
     // Add 6 sprite vertices
-    DXUTSpriteVertex SpriteVertex;
+    DXUTSpriteVertex SpriteVertex = {};
 
     // tri1
     SpriteVertex.vPos = XMFLOAT3( fRectLeft, fRectTop, fDepth );

@@ -8,16 +8,13 @@
 // full-featured texture capture, DDS writer, and texture processing pipeline,
 // see the 'Texconv' sample and the 'DirectXTex' library.
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
 // http://go.microsoft.com/fwlink/?LinkId=248929
 //--------------------------------------------------------------------------------------
+
 #include "dxut.h"
 
 // Does not capture 1D textures or 3D textures (volume maps)
@@ -25,6 +22,8 @@
 // Does not capture mipmap chains, only the top-most texture level is saved
 
 // For 2D array textures and cubemaps, it captures only the first image in the array
+
+#include "ScreenGrab.h"
 
 #include <dxgiformat.h>
 #include <assert.h>
@@ -35,8 +34,6 @@
 
 #include <algorithm>
 #include <memory>
-
-#include "ScreenGrab.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -212,7 +209,7 @@ namespace
         {
             if (m_handle)
             {
-                FILE_DISPOSITION_INFO info = {0};
+                FILE_DISPOSITION_INFO info = {};
                 info.DeleteFile = TRUE;
                 (void)SetFileInformationByHandle(m_handle, FileDispositionInfo, &info, sizeof(info));
             }
@@ -230,7 +227,7 @@ namespace
     class auto_delete_file_wic
     {
     public:
-        auto_delete_file_wic(ComPtr<IWICStream>& hFile, LPCWSTR szFile) : m_handle(hFile), m_filename(szFile) {}
+        auto_delete_file_wic(ComPtr<IWICStream>& hFile, const wchar_t* szFile) : m_handle(hFile), m_filename(szFile) {}
         ~auto_delete_file_wic()
         {
             if (m_filename)
@@ -243,7 +240,7 @@ namespace
         void clear() { m_filename = 0; }
 
     private:
-        LPCWSTR m_filename;
+        const wchar_t* m_filename;
         ComPtr<IWICStream>& m_handle;
 
         auto_delete_file_wic(const auto_delete_file_wic&) = delete;
@@ -603,8 +600,8 @@ namespace
     HRESULT CaptureTexture(
         _In_ ID3D11DeviceContext* pContext,
         _In_ ID3D11Resource* pSource,
-        _Inout_ D3D11_TEXTURE2D_DESC& desc,
-        _Inout_ ComPtr<ID3D11Texture2D>& pStaging )
+        D3D11_TEXTURE2D_DESC& desc,
+        ComPtr<ID3D11Texture2D>& pStaging )
     {
         if ( !pContext || !pSource )
             return E_INVALIDARG;
@@ -616,7 +613,7 @@ namespace
             return HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED );
 
         ComPtr<ID3D11Texture2D> pTexture;
-        HRESULT hr = pSource->QueryInterface( IID_PPV_ARGS( pTexture.GetAddressOf() ) );
+        HRESULT hr = pSource->QueryInterface(IID_PPV_ARGS(pTexture.GetAddressOf()));
         if ( FAILED(hr) )
             return hr;
 
@@ -664,7 +661,7 @@ namespace
             desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
             desc.Usage = D3D11_USAGE_STAGING;
 
-            hr = d3dDevice->CreateTexture2D( &desc, 0, pStaging.GetAddressOf() );
+            hr = d3dDevice->CreateTexture2D(&desc, 0, pStaging.ReleaseAndGetAddressOf());
             if ( FAILED(hr) )
                 return hr;
 
@@ -685,7 +682,7 @@ namespace
             desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
             desc.Usage = D3D11_USAGE_STAGING;
 
-            hr = d3dDevice->CreateTexture2D( &desc, 0, pStaging.GetAddressOf() );
+            hr = d3dDevice->CreateTexture2D(&desc, 0, pStaging.ReleaseAndGetAddressOf());
             if ( FAILED(hr) )
                 return hr;
 
@@ -696,21 +693,68 @@ namespace
 
         return S_OK;
     }
+
+    //--------------------------------------------------------------------------------------
+    bool g_WIC2 = false;
+
+    IWICImagingFactory* _GetWIC()
+    {
+        static INIT_ONCE s_initOnce = INIT_ONCE_STATIC_INIT;
+
+        IWICImagingFactory* factory = nullptr;
+        InitOnceExecuteOnce(&s_initOnce,
+            [](PINIT_ONCE, PVOID, LPVOID *factory) -> BOOL
+            {
+            #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8) || defined(_WIN7_PLATFORM_UPDATE)
+                HRESULT hr = CoCreateInstance(
+                    CLSID_WICImagingFactory2,
+                    nullptr,
+                    CLSCTX_INPROC_SERVER,
+                    __uuidof(IWICImagingFactory2),
+                    factory
+                    );
+
+                if ( SUCCEEDED(hr) )
+                {
+                    // WIC2 is available on Windows 10, Windows 8.x, and Windows 7 SP1 with KB 2670838 installed
+                    g_WIC2 = true;
+                    return TRUE;
+                }
+                else
+                {
+                    hr = CoCreateInstance(
+                        CLSID_WICImagingFactory1,
+                        nullptr,
+                        CLSCTX_INPROC_SERVER,
+                        __uuidof(IWICImagingFactory),
+                        factory
+                        );
+                    return SUCCEEDED(hr) ? TRUE : FALSE;
+                }
+            #else
+                return SUCCEEDED( CoCreateInstance(
+                    CLSID_WICImagingFactory,
+                    nullptr,
+                    CLSCTX_INPROC_SERVER,
+                    __uuidof(IWICImagingFactory),
+                    factory) ) ? TRUE : FALSE;
+            #endif
+            }, nullptr, reinterpret_cast<LPVOID*>(&factory));
+
+        return factory;
+    }
 } // anonymous namespace
 
-extern bool g_WIC2;
-
-extern IWICImagingFactory* _GetWIC();
 
 //--------------------------------------------------------------------------------------
 HRESULT DirectX::SaveDDSTextureToFile( _In_ ID3D11DeviceContext* pContext,
                                        _In_ ID3D11Resource* pSource,
-                                       _In_z_ LPCWSTR fileName )
+                                       _In_z_ const wchar_t* fileName )
 {
     if ( !fileName )
         return E_INVALIDARG;
 
-    D3D11_TEXTURE2D_DESC desc = { 0 };
+    D3D11_TEXTURE2D_DESC desc = {};
     ComPtr<ID3D11Texture2D> pStaging;
     HRESULT hr = CaptureTexture( pContext, pSource, desc, pStaging );
     if ( FAILED(hr) )
@@ -718,9 +762,9 @@ HRESULT DirectX::SaveDDSTextureToFile( _In_ ID3D11DeviceContext* pContext,
 
     // Create file
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
-    ScopedHandle hFile( safe_handle( CreateFile2( fileName, GENERIC_WRITE | DELETE, 0, CREATE_ALWAYS, 0 ) ) );
+    ScopedHandle hFile( safe_handle( CreateFile2( fileName, GENERIC_WRITE | DELETE, 0, CREATE_ALWAYS, nullptr ) ) );
 #else
-    ScopedHandle hFile( safe_handle( CreateFileW( fileName, GENERIC_WRITE | DELETE, 0, 0, CREATE_ALWAYS, 0, 0 ) ) );
+    ScopedHandle hFile( safe_handle( CreateFileW( fileName, GENERIC_WRITE | DELETE, 0, nullptr, CREATE_ALWAYS, 0, nullptr ) ) );
 #endif
     if ( !hFile )
         return HRESULT_FROM_WIN32( GetLastError() );
@@ -845,13 +889,13 @@ HRESULT DirectX::SaveDDSTextureToFile( _In_ ID3D11DeviceContext* pContext,
 
     // Write header & pixels
     DWORD bytesWritten;
-    if ( !WriteFile( hFile.get(), fileHeader, static_cast<DWORD>( headerSize ), &bytesWritten, 0 ) )
+    if ( !WriteFile( hFile.get(), fileHeader, static_cast<DWORD>( headerSize ), &bytesWritten, nullptr ) )
         return HRESULT_FROM_WIN32( GetLastError() );
 
     if ( bytesWritten != headerSize )
         return E_FAIL;
 
-    if ( !WriteFile( hFile.get(), pixels.get(), static_cast<DWORD>( slicePitch ), &bytesWritten, 0 ) )
+    if ( !WriteFile( hFile.get(), pixels.get(), static_cast<DWORD>( slicePitch ), &bytesWritten, nullptr ) )
         return HRESULT_FROM_WIN32( GetLastError() );
 
     if ( bytesWritten != slicePitch )
@@ -866,14 +910,14 @@ HRESULT DirectX::SaveDDSTextureToFile( _In_ ID3D11DeviceContext* pContext,
 HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
                                        _In_ ID3D11Resource* pSource,
                                        _In_ REFGUID guidContainerFormat, 
-                                       _In_z_ LPCWSTR fileName,
+                                       _In_z_ const wchar_t* fileName,
                                        _In_opt_ const GUID* targetFormat,
                                        _In_opt_ std::function<void(IPropertyBag2*)> setCustomProps )
 {
     if ( !fileName )
         return E_INVALIDARG;
 
-    D3D11_TEXTURE2D_DESC desc = { 0 };
+    D3D11_TEXTURE2D_DESC desc = {};
     ComPtr<ID3D11Texture2D> pStaging;
     HRESULT hr = CaptureTexture( pContext, pSource, desc, pStaging );
     if ( FAILED(hr) )
@@ -928,7 +972,7 @@ HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
         return HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED );
     }
 
-    IWICImagingFactory* pWIC = _GetWIC();
+    auto pWIC = _GetWIC();
     if ( !pWIC )
         return E_NOINTERFACE;
 
@@ -961,8 +1005,8 @@ HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
     if ( targetFormat && memcmp( &guidContainerFormat, &GUID_ContainerFormatBmp, sizeof(WICPixelFormatGUID) ) == 0 && g_WIC2 )
     {
         // Opt-in to the WIC2 support for writing 32-bit Windows BMP files with an alpha channel
-        PROPBAG2 option = { 0 };
-        option.pstrName = L"EnableV5Header32bppBGRA";
+        PROPBAG2 option = {};
+        option.pstrName = const_cast<wchar_t*>(L"EnableV5Header32bppBGRA");
 
         VARIANT varValue;    
         varValue.vt = VT_BOOL;
@@ -1048,7 +1092,7 @@ HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
         PropVariantInit( &value );
 
         value.vt = VT_LPSTR;
-        value.pszVal = "DirectXTK";
+        value.pszVal = const_cast<char*>("DirectXTK");
 
         if ( memcmp( &guidContainerFormat, &GUID_ContainerFormatPng, sizeof(GUID) ) == 0 )
         {
@@ -1056,11 +1100,21 @@ HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
             (void)metawriter->SetMetadataByName( L"/tEXt/{str=Software}", &value );
 
             // Set sRGB chunk
-            if ( sRGB )
+            if (sRGB)
             {
                 value.vt = VT_UI1;
                 value.bVal = 0;
-                (void)metawriter->SetMetadataByName( L"/sRGB/RenderingIntent", &value );
+                (void)metawriter->SetMetadataByName(L"/sRGB/RenderingIntent", &value);
+            }
+            else
+            {
+                // add gAMA chunk with gamma 1.0
+                value.vt = VT_UI4;
+                value.uintVal = 100000; // gama value * 100,000 -- i.e. gamma 1.0
+                (void)metawriter->SetMetadataByName(L"/gAMA/ImageGamma", &value);
+
+                // remove sRGB chunk which is added by default.
+                (void)metawriter->RemoveMetadataByName(L"/sRGB/RenderingIntent");
             }
         }
         else
@@ -1111,7 +1165,7 @@ HRESULT DirectX::SaveWICTextureToFile( _In_ ID3D11DeviceContext* pContext,
             return E_UNEXPECTED;
         }
 
-        hr = FC->Initialize( source.Get(), targetGuid, WICBitmapDitherTypeNone, 0, 0, WICBitmapPaletteTypeCustom );
+        hr = FC->Initialize( source.Get(), targetGuid, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeMedianCut );
         if ( FAILED(hr) )
         {
             pContext->Unmap( pStaging.Get(), 0 );

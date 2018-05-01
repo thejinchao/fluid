@@ -1,12 +1,8 @@
 //--------------------------------------------------------------------------------------
 // File: DXUT.cpp
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=320437
 //--------------------------------------------------------------------------------------
@@ -107,6 +103,12 @@ protected:
                                                            // D3D11.3 specific
         ID3D11Device3*          m_D3D11Device3;            // the D3D11.3 rendering device
         ID3D11DeviceContext3*	m_D3D11DeviceContext3;	   // the D3D11.3 immediate device context
+#endif
+
+#ifdef USE_DIRECT3D11_4
+                                                           // D3D11.4 specific
+        ID3D11Device4*          m_D3D11Device4;            // the D3D11.4 rendering device
+        ID3D11DeviceContext4*	m_D3D11DeviceContext4;	   // the D3D11.4 immediate device context
 #endif
 
         // General
@@ -321,6 +323,11 @@ public:
 #ifdef USE_DIRECT3D11_3
     GET_SET_ACCESSOR(ID3D11Device3*, D3D11Device3);
     GET_SET_ACCESSOR(ID3D11DeviceContext3*, D3D11DeviceContext3);
+#endif
+
+#ifdef USE_DIRECT3D11_4
+    GET_SET_ACCESSOR(ID3D11Device4*, D3D11Device4);
+    GET_SET_ACCESSOR(ID3D11DeviceContext4*, D3D11DeviceContext4);
 #endif
 
     GET_SET_ACCESSOR( HWND, HWNDFocus );
@@ -620,6 +627,11 @@ ID3D11Device3* WINAPI DXUTGetD3D11Device3() { return GetDXUTState().GetD3D11Devi
 ID3D11DeviceContext3* WINAPI DXUTGetD3D11DeviceContext3() { return GetDXUTState().GetD3D11DeviceContext3(); }
 #endif
 
+#ifdef USE_DIRECT3D11_4
+ID3D11Device4* WINAPI DXUTGetD3D11Device4() { return GetDXUTState().GetD3D11Device4(); }
+ID3D11DeviceContext4* WINAPI DXUTGetD3D11DeviceContext4() { return GetDXUTState().GetD3D11DeviceContext4(); }
+#endif
+
 //--------------------------------------------------------------------------------------
 // External callback setup functions
 //--------------------------------------------------------------------------------------
@@ -743,7 +755,7 @@ void DXUTParseCommandLine(WCHAR* strCommandLine,
             {
                 if( DXUTGetCmdParam( strCmdLine, strFlag, MAX_PATH ) )
                 {
-#ifdef USE_DIRECT3D11_3
+#if defined(USE_DIRECT3D11_3) || defined(USE_DIRECT3D11_4)
                     if (_wcsnicmp(strFlag, L"D3D_FEATURE_LEVEL_12_1", MAX_PATH) == 0) {
                         GetDXUTState().SetOverrideForceFeatureLevel(D3D_FEATURE_LEVEL_12_1);
                     }
@@ -1986,7 +1998,7 @@ HRESULT DXUTChangeDevice( DXUTDeviceSettings* pNewDeviceSettings,
             {
                 // Use wp.rcNormalPosition to get the client rect, but wp.rcNormalPosition 
                 // includes the window frame so subtract it
-                RECT rcFrame = {0};
+                RECT rcFrame = {};
                 AdjustWindowRect( &rcFrame, GetDXUTState().GetWindowedStyleAtModeChange(), GetDXUTState().GetMenu() != 0 );
                 LONG nFrameWidth = rcFrame.right - rcFrame.left;
                 LONG nFrameHeight = rcFrame.bottom - rcFrame.top;
@@ -2118,7 +2130,7 @@ HRESULT DXUTChangeDevice( DXUTDeviceSettings* pNewDeviceSettings,
         else
         {
             // Make a window rect with a client rect that is the same size as the backbuffer
-            RECT rcWindow = {0};
+            RECT rcWindow = {};
             rcWindow.right = (long)( DXUTGetBackBufferWidthFromDS(pNewDeviceSettings) );
             rcWindow.bottom = (long)( DXUTGetBackBufferHeightFromDS(pNewDeviceSettings) );
             AdjustWindowRect( &rcWindow, GetWindowLong( DXUTGetHWNDDeviceWindowed(), GWL_STYLE ), GetDXUTState().GetMenu() != 0 );
@@ -2161,7 +2173,7 @@ HRESULT DXUTChangeDevice( DXUTDeviceSettings* pNewDeviceSettings,
     }
 
     //if (DXUTGetIsWindowedFromDS( pNewDeviceSettings )) {
-    //    RECT rcFrame = {0};
+    //    RECT rcFrame = {};
     //    AdjustWindowRect( &rcFrame, GetDXUTState().GetWindowedStyleAtModeChange(), GetDXUTState().GetMenu() );
    // }
 
@@ -2627,6 +2639,25 @@ HRESULT DXUTCreate3DEnvironment11()
     }
 #endif
 
+#ifdef USE_DIRECT3D11_4
+    // Direct3D 11.4
+    {
+        ID3D11Device4* pd3d11Device4 = nullptr;
+        hr = pd3d11Device->QueryInterface(IID_PPV_ARGS(&pd3d11Device4));
+        if (SUCCEEDED(hr) && pd3d11Device4)
+        {
+            GetDXUTState().SetD3D11Device4(pd3d11Device4);
+
+            ID3D11DeviceContext4* pd3dImmediateContext4 = nullptr;
+            hr = pd3dImmediateContext->QueryInterface(IID_PPV_ARGS(&pd3dImmediateContext4));
+            if (SUCCEEDED(hr) && pd3dImmediateContext4)
+            {
+                GetDXUTState().SetD3D11DeviceContext4(pd3dImmediateContext4);
+            }
+        }
+    }
+#endif
+
     // If switching to REF, set the exit code to 11.  If switching to HAL and exit code was 11, then set it back to 0.
     if( pNewDeviceSettings->d3d11.DriverType == D3D_DRIVER_TYPE_REFERENCE && GetDXUTState().GetExitCode() == 0 )
         GetDXUTState().SetExitCode( 10 );
@@ -3067,6 +3098,12 @@ void DXUTCleanup3DEnvironment( _In_ bool bReleaseSettings )
         GetDXUTState().SetD3D11DeviceContext3(nullptr);
 #endif
 
+#ifdef USE_DIRECT3D11_4
+        auto pImmediateContext4 = DXUTGetD3D11DeviceContext4();
+        SAFE_RELEASE(pImmediateContext4);
+        GetDXUTState().SetD3D11DeviceContext4(nullptr);
+#endif
+
         // Report live objects
         if ( pd3dDevice )
         {
@@ -3093,6 +3130,12 @@ void DXUTCleanup3DEnvironment( _In_ bool bReleaseSettings )
             auto pd3dDevice3 = DXUTGetD3D11Device3();
             SAFE_RELEASE(pd3dDevice3);
             GetDXUTState().SetD3D11Device3(nullptr);
+#endif
+
+#ifdef USE_DIRECT3D11_4
+            auto pd3dDevice4 = DXUTGetD3D11Device4();
+            SAFE_RELEASE(pd3dDevice4);
+            GetDXUTState().SetD3D11Device4(nullptr);
 #endif
 
             // Release the D3D device and in debug configs, displays a message box if there 
@@ -4107,7 +4150,7 @@ void DXUTUpdateFrameStats()
 LPCWSTR WINAPI DXUTGetFrameStats( _In_ bool bShowFPS )
 {
     auto pstrFrameStats = GetDXUTState().GetFrameStats();
-    WCHAR* pstrFPS = ( bShowFPS ) ? GetDXUTState().GetFPSStats() : L"";
+    const WCHAR* pstrFPS = ( bShowFPS ) ? GetDXUTState().GetFPSStats() : L"";
     WCHAR* pstrStats = GetDXUTState().GetStaticFrameStats();
     swprintf_s( pstrFrameStats, 256, pstrStats, pstrFPS );
     return pstrFrameStats;
@@ -4181,7 +4224,7 @@ void DXUTUpdateD3D11DeviceStats( D3D_DRIVER_TYPE DeviceType, D3D_FEATURE_LEVEL f
     case D3D_FEATURE_LEVEL_11_1:
         wcscat_s( pstrDeviceStats, 256, L" (FL 11.1)" );
         break;
-#ifdef USE_DIRECT3D11_3
+#if defined(USE_DIRECT3D11_3) || defined(USE_DIRECT3D11_4)
     case D3D_FEATURE_LEVEL_12_0:
         wcscat_s(pstrDeviceStats, 256, L" (FL 12.0)");
         break;

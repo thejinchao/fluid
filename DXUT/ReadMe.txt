@@ -3,13 +3,15 @@ DXUT FOR DIRECT3D 11
 
 Copyright (c) Microsoft Corporation. All rights reserved.
 
-September 15, 2016
+February 27, 2018
 
 DXUT is a "GLUT"-like framework for Direct3D 11.x Win32 desktop applications; primarily
 samples, demos, and prototypes.
 
-The source is written for Visual Studio 2013 or 2015. It is recommended that you
-make use of VS 2013 Update 5, VS 2015 Update 3, and Windows 7 Service Pack 1 or later.
+This code is designed to build with Visual Studio 2013 Update 5, Visual Studio 2015 Update 3,
+or Visual Studio 2017. It is recommended that you make use of VS 2015 Update 3, Windows Tools
+1.4.1, and the Windows 10 Anniversary Update SDK (14393) or VS 2017 with the Windows 10
+Fall Creators Update SDK (16299).
 
 These components are designed to work without requiring any content from the DirectX SDK. For details,
 see "Where is the DirectX SDK?" <http://msdn.microsoft.com/en-us/library/ee663275.aspx>.
@@ -52,9 +54,35 @@ Xbox One apps, or Windows phone.
 This version of DXUT only supports Direct3D 11, and therefore is not compatible with Windows XP or early versions of Windows Vista.
 
 
+-------------
+RELEASE NOTES
+-------------
+
+* The VS 2017 projects make use of /permissive- for improved C++ standard conformance. Use of a Windows 10 SDK prior to
+  the Fall Creators Update (16299) may result in failures due to problems with the system headers. You can work around
+  these by deleting /permissive- from the project files which is found in the <AdditionalOptions> element.
+
+
 ---------------
 RELEASE HISTORY
 ---------------
+
+February 27, 2018 (11.18)
+    Fixed array length mismatch issue with TOTAL_FEATURE_LEVELS
+    Fixed optional Direct3D 11.4 support in VS 2013/2015 projects
+    Minor code cleanup
+
+November 2, 2017 (11.17)
+    VS 2017 updated for Windows 10 Fall Creators Update SDK (16299)
+    Optional support for Direct3D 11.4 (define USE_DIRECT3D11_4 in projects using the 14393 or later Windows 10 SDK)
+
+October 13, 2017 (11.16)
+    Updated DDSTextureLoader, WICTextureLoader, and ScreenGrab
+    Updated for VS 2017 update 15.1 - 15.3 and Windows 10 SDK (15063)    
+
+March 10, 2017 (11.15)
+    Add VS 2017 projects
+    Minor code cleanup
 
 September 15, 2016 (11.14)
     Updated WICTextureLoader and ScreenGrab
